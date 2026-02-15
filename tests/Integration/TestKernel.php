@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App;
+namespace Tests\Integration;
 
 use App\Http\Controller\OrderController;
 use App\Http\Controller\ProductController;
@@ -16,7 +16,13 @@ use Core\SharedKernel\CQRS\CommandInterface;
 use Core\SharedKernel\CQRS\QueryInterface;
 use Psr\Http\Server\MiddlewareInterface;
 
-final class Kernel
+/**
+ * Test-specific Kernel that uses SQLite in-memory instead of MySQL.
+ *
+ * Replicates the production Kernel's setup but overrides
+ * the database connection for integration testing.
+ */
+final class TestKernel
 {
     private ?Container $container = null;
     private ?Router $router = null;
@@ -33,9 +39,7 @@ final class Kernel
 
         $builder = new ContainerBuilder(projectDir: $this->projectDir);
 
-        // Interfaces with multiple implementations — mark as autoconfigured
-        // to avoid ambiguous auto-binding errors during scanning.
-        // These are marker/common interfaces that are expected to have many implementors.
+        // Same autoconfiguration as production Kernel
         $builder->registerForAutoconfiguration(MiddlewareInterface::class);
         $builder->registerForAutoconfiguration(CommandInterface::class);
         $builder->registerForAutoconfiguration(QueryInterface::class);
@@ -48,18 +52,9 @@ final class Kernel
         // Scan domain handlers (core layer)
         $builder->scan($this->projectDir . '/core');
 
-        // Database connection via factory
-        $builder->register(Connection::class, static function (Container $c): Connection {
-            $driver = self::paramString($c, 'DB_DRIVER', 'mysql');
-            $host = self::paramString($c, 'DB_HOST', '127.0.0.1');
-            $port = self::paramString($c, 'DB_PORT', '3306');
-            $name = self::paramString($c, 'DB_NAME', 'backend_demo');
-            $user = self::paramString($c, 'DB_USER', 'root');
-            $password = self::paramString($c, 'DB_PASSWORD', '');
-
-            $dsn = \sprintf('%s:host=%s;port=%s;dbname=%s;charset=utf8mb4', $driver, $host, $port, $name);
-
-            return Connection::create($dsn, $user, $password, nestTransactions: true);
+        // Override database connection with SQLite in-memory
+        $builder->register(Connection::class, static function (): Connection {
+            return Connection::create('sqlite::memory:', nestTransactions: true);
         });
 
         $this->container = $builder->build();
@@ -77,7 +72,7 @@ final class Kernel
 
         $this->router = new Router($container);
 
-        // Global middleware (FIFO: error handler wraps everything, then JSON headers)
+        // Global middleware (same as production Kernel)
         $this->router->addMiddleware(ErrorHandlerMiddleware::class);
         $this->router->addMiddleware(JsonResponseMiddleware::class);
 
@@ -88,12 +83,5 @@ final class Kernel
         );
 
         return $this->router;
-    }
-
-    private static function paramString(Container $container, string $name, string $default): string
-    {
-        $value = $container->getParameter($name);
-
-        return \is_string($value) ? $value : $default;
     }
 }

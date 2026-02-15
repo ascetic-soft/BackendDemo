@@ -18,7 +18,7 @@ use Psr\Http\Message\ServerRequestInterface;
 #[Route('/api/orders')]
 final readonly class OrderController extends AbstractController
 {
-    #[Route('/', methods: ['GET'], name: 'orders.list')]
+    #[Route(methods: ['GET'], name: 'orders.list')]
     public function list(ServerRequestInterface $request): ResponseInterface
     {
         [$limit, $offset] = self::pagination($request);
@@ -38,7 +38,7 @@ final readonly class OrderController extends AbstractController
         return self::json(200, self::serializeOrder($order));
     }
 
-    #[Route('/', methods: ['POST'], name: 'orders.create')]
+    #[Route(methods: ['POST'], name: 'orders.create')]
     public function create(ServerRequestInterface $request): ResponseInterface
     {
         /** @var array<string, mixed> $body */
