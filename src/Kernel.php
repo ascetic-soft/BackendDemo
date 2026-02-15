@@ -8,16 +8,10 @@ use App\Http\Controller\OrderController;
 use App\Http\Controller\ProductController;
 use App\Http\Middleware\ErrorHandlerMiddleware;
 use App\Http\Middleware\JsonResponseMiddleware;
-use App\Repository\OrderRepository;
-use App\Repository\ProductRepository;
 use AsceticSoft\Rowcast\Connection;
 use AsceticSoft\Waypoint\Router;
 use AsceticSoft\Wirebox\Container;
 use AsceticSoft\Wirebox\ContainerBuilder;
-use Core\Order\Domain\Repository\OrderRepositoryInterface;
-use Core\Product\Domain\Repository\ProductRepositoryInterface;
-use Core\SharedKernel\CQRS\CommandHandlerInterface;
-use Core\SharedKernel\CQRS\QueryHandlerInterface;
 
 final class Kernel
 {
@@ -36,23 +30,11 @@ final class Kernel
 
         $builder = new ContainerBuilder(projectDir: $this->projectDir);
 
-        // Exclude persistence DTOs and entities from DI scanning
-        $builder->exclude('Repository/OrderRow.php');
-        $builder->exclude('Repository/OrderLineRow.php');
-
-        // Autoconfigure CQRS handler tags (keeps core free of infrastructure attributes)
-        $builder->registerForAutoconfiguration(CommandHandlerInterface::class)->tag('command.handler');
-        $builder->registerForAutoconfiguration(QueryHandlerInterface::class)->tag('query.handler');
-
         // Scan application services (infrastructure layer)
         $builder->scan($this->projectDir . '/src');
 
         // Scan domain handlers (core layer)
         $builder->scan($this->projectDir . '/core');
-
-        // Bind repository interfaces to concrete implementations
-        $builder->bind(ProductRepositoryInterface::class, ProductRepository::class);
-        $builder->bind(OrderRepositoryInterface::class, OrderRepository::class);
 
         // Database connection via factory
         $builder->register(Connection::class, static function (Container $c): Connection {

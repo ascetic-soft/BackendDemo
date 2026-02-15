@@ -8,18 +8,17 @@ use Core\Product\Application\DTO\ProductDTO;
 use Core\Product\Domain\Exception\ProductNotFoundException;
 use Core\Product\Domain\Repository\ProductRepositoryInterface;
 use Core\Product\Domain\ValueObject\ProductId;
-use Core\SharedKernel\CQRS\QueryHandlerInterface;
+use Core\SharedKernel\CQRS\AsQueryHandler;
 
-final readonly class GetProductHandler implements QueryHandlerInterface
+#[AsQueryHandler(GetProduct::class)]
+final readonly class GetProductHandler
 {
     public function __construct(
         private ProductRepositoryInterface $repository,
     ) {}
 
-    public function __invoke(object $query): ProductDTO
+    public function __invoke(GetProduct $query): ProductDTO
     {
-        \assert($query instanceof GetProduct);
-
         $productId = new ProductId($query->id);
         $product = $this->repository->findById($productId);
 

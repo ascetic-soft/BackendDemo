@@ -19,7 +19,7 @@ use PHPUnit\Framework\TestCase;
 final class OrderTest extends TestCase
 {
     #[Test]
-    public function it_places_an_order(): void
+    public function itPlacesAnOrder(): void
     {
         $order = $this->placeOrder();
 
@@ -30,7 +30,7 @@ final class OrderTest extends TestCase
     }
 
     #[Test]
-    public function it_rejects_order_without_lines(): void
+    public function itRejectsOrderWithoutLines(): void
     {
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('at least one line item');
@@ -39,7 +39,7 @@ final class OrderTest extends TestCase
     }
 
     #[Test]
-    public function it_calculates_total(): void
+    public function itCalculatesTotal(): void
     {
         $order = $this->placeOrder();
         $total = $order->getTotal();
@@ -52,7 +52,7 @@ final class OrderTest extends TestCase
     }
 
     #[Test]
-    public function it_confirms_pending_order(): void
+    public function itConfirmsPendingOrder(): void
     {
         $order = $this->placeOrder();
 
@@ -62,7 +62,7 @@ final class OrderTest extends TestCase
     }
 
     #[Test]
-    public function it_cancels_pending_order(): void
+    public function itCancelsPendingOrder(): void
     {
         $order = $this->placeOrder();
 
@@ -72,7 +72,7 @@ final class OrderTest extends TestCase
     }
 
     #[Test]
-    public function it_completes_confirmed_order(): void
+    public function itCompletesConfirmedOrder(): void
     {
         $order = $this->placeOrder();
         $order->confirm();
@@ -83,7 +83,7 @@ final class OrderTest extends TestCase
     }
 
     #[Test]
-    public function it_cannot_confirm_cancelled_order(): void
+    public function itCannotConfirmCancelledOrder(): void
     {
         $order = $this->placeOrder();
         $order->cancel();
@@ -95,7 +95,7 @@ final class OrderTest extends TestCase
     }
 
     #[Test]
-    public function it_cannot_complete_pending_order(): void
+    public function itCannotCompletePendingOrder(): void
     {
         $order = $this->placeOrder();
 
@@ -106,7 +106,7 @@ final class OrderTest extends TestCase
     }
 
     #[Test]
-    public function it_reconstitutes_from_persistence(): void
+    public function itReconstitutesFromPersistence(): void
     {
         $id = OrderId::generate();
         $lines = $this->createLines();

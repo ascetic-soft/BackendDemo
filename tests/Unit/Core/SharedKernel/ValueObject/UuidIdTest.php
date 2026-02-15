@@ -12,7 +12,7 @@ use PHPUnit\Framework\TestCase;
 final class UuidIdTest extends TestCase
 {
     #[Test]
-    public function it_accepts_valid_uuid(): void
+    public function itAcceptsValidUuid(): void
     {
         $id = new ProductId('550e8400-e29b-41d4-a716-446655440000');
 
@@ -20,7 +20,7 @@ final class UuidIdTest extends TestCase
     }
 
     #[Test]
-    public function it_normalizes_to_lowercase(): void
+    public function itNormalizesToLowercase(): void
     {
         $id = new ProductId('550E8400-E29B-41D4-A716-446655440000');
 
@@ -28,7 +28,7 @@ final class UuidIdTest extends TestCase
     }
 
     #[Test]
-    public function it_rejects_invalid_uuid(): void
+    public function itRejectsInvalidUuid(): void
     {
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Invalid UUID format');
@@ -37,7 +37,7 @@ final class UuidIdTest extends TestCase
     }
 
     #[Test]
-    public function it_generates_valid_uuid_v4(): void
+    public function itGeneratesValidUuidV4(): void
     {
         $id = ProductId::generate();
 
@@ -48,7 +48,7 @@ final class UuidIdTest extends TestCase
     }
 
     #[Test]
-    public function it_generates_unique_ids(): void
+    public function itGeneratesUniqueIds(): void
     {
         $id1 = ProductId::generate();
         $id2 = ProductId::generate();
@@ -57,7 +57,7 @@ final class UuidIdTest extends TestCase
     }
 
     #[Test]
-    public function equals_returns_true_for_same_value(): void
+    public function equalsReturnsTrueForSameValue(): void
     {
         $id1 = new ProductId('550e8400-e29b-41d4-a716-446655440000');
         $id2 = new ProductId('550e8400-e29b-41d4-a716-446655440000');
@@ -66,7 +66,7 @@ final class UuidIdTest extends TestCase
     }
 
     #[Test]
-    public function to_string_returns_value(): void
+    public function toStringReturnsValue(): void
     {
         $id = new ProductId('550e8400-e29b-41d4-a716-446655440000');
 

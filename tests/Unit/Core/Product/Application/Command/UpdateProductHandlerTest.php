@@ -25,13 +25,13 @@ final class UpdateProductHandlerTest extends TestCase
     }
 
     #[Test]
-    public function it_updates_product_name(): void
+    public function itUpdatesProductName(): void
     {
         $product = Product::create($this->productId, new ProductName('Old'), new Money(100, 'USD'));
         $repository = $this->createMock(ProductRepositoryInterface::class);
 
         $repository->method('findById')->willReturn($product);
-        $repository->expects(self::once())->method('save');
+        $repository->expects($this->once())->method('save');
 
         $handler = new UpdateProductHandler($repository);
 
@@ -41,13 +41,13 @@ final class UpdateProductHandlerTest extends TestCase
     }
 
     #[Test]
-    public function it_updates_product_price(): void
+    public function itUpdatesProductPrice(): void
     {
         $product = Product::create($this->productId, new ProductName('Widget'), new Money(100, 'USD'));
         $repository = $this->createMock(ProductRepositoryInterface::class);
 
         $repository->method('findById')->willReturn($product);
-        $repository->expects(self::once())->method('save');
+        $repository->expects($this->once())->method('save');
 
         $handler = new UpdateProductHandler($repository);
 
@@ -58,7 +58,7 @@ final class UpdateProductHandlerTest extends TestCase
     }
 
     #[Test]
-    public function it_throws_when_product_not_found(): void
+    public function itThrowsWhenProductNotFound(): void
     {
         $repository = $this->createMock(ProductRepositoryInterface::class);
         $repository->method('findById')->willReturn(null);

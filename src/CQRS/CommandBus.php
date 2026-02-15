@@ -5,22 +5,20 @@ declare(strict_types=1);
 namespace App\CQRS;
 
 use AsceticSoft\Wirebox\Container;
-use Core\SharedKernel\CQRS\CommandHandlerInterface;
+use Core\SharedKernel\CQRS\AsCommandHandler;
 use Core\SharedKernel\CQRS\CommandInterface;
-use ReflectionException;
-use ReflectionMethod;
-use ReflectionNamedType;
+use ReflectionClass;
 use RuntimeException;
 
 /**
  * Routes commands to their handlers using Wirebox tagged services.
  *
  * Each handler is resolved via the 'command.handler' tag and matched
- * by inspecting the __invoke parameter type-hint.
+ * by the command class declared in the #[AsCommandHandler] attribute.
  */
 final class CommandBus
 {
-    /** @var array<class-string, CommandHandlerInterface>|null */
+    /** @var array<class-string, callable>|null */
     private ?array $handlerMap = null;
 
     public function __construct(
@@ -33,7 +31,7 @@ final class CommandBus
         ($handler)($command);
     }
 
-    private function resolveHandler(CommandInterface $command): CommandHandlerInterface
+    private function resolveHandler(CommandInterface $command): callable
     {
         $map = $this->getHandlerMap();
         $commandClass = $command::class;
@@ -46,7 +44,7 @@ final class CommandBus
     }
 
     /**
-     * @return array<class-string, CommandHandlerInterface>
+     * @return array<class-string, callable>
      */
     private function getHandlerMap(): array
     {
@@ -57,8 +55,7 @@ final class CommandBus
         $this->handlerMap = [];
 
         foreach ($this->container->getTagged('command.handler') as $handler) {
-            \assert($handler instanceof CommandHandlerInterface);
-            $commandClass = self::extractParameterType($handler);
+            $commandClass = self::extractCommandClass($handler);
 
             if ($commandClass !== null) {
                 $this->handlerMap[$commandClass] = $handler;
@@ -71,26 +68,18 @@ final class CommandBus
     /**
      * @return class-string|null
      */
-    private static function extractParameterType(CommandHandlerInterface $handler): ?string
+    private static function extractCommandClass(object $handler): ?string
     {
-        try {
-            $ref = new ReflectionMethod($handler, '__invoke');
-            $params = $ref->getParameters();
+        $ref = new ReflectionClass($handler);
+        $attrs = $ref->getAttributes(AsCommandHandler::class);
 
-            if ($params === []) {
-                return null;
-            }
-
-            $type = $params[0]->getType();
-
-            if ($type instanceof ReflectionNamedType && !$type->isBuiltin()) {
-                /** @var class-string */
-                return $type->getName();
-            }
-        } catch (ReflectionException) {
-            // ignore
+        if ($attrs === []) {
+            return null;
         }
 
-        return null;
+        /** @var AsCommandHandler $attr */
+        $attr = $attrs[0]->newInstance();
+
+        return $attr->command;
     }
 }

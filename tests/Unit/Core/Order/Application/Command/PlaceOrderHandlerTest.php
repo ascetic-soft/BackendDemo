@@ -22,7 +22,7 @@ use PHPUnit\Framework\TestCase;
 final class PlaceOrderHandlerTest extends TestCase
 {
     #[Test]
-    public function it_places_an_order(): void
+    public function itPlacesAnOrder(): void
     {
         $productId = ProductId::generate();
 
@@ -36,7 +36,7 @@ final class PlaceOrderHandlerTest extends TestCase
         $productRepo->method('findById')->willReturn($product);
 
         $orderRepo = $this->createMock(OrderRepositoryInterface::class);
-        $orderRepo->expects(self::once())
+        $orderRepo->expects($this->once())
             ->method('save')
             ->with(self::callback(static function (Order $order): bool {
                 return $order->getStatus() === OrderStatus::Pending
@@ -56,7 +56,7 @@ final class PlaceOrderHandlerTest extends TestCase
     }
 
     #[Test]
-    public function it_throws_when_product_not_found(): void
+    public function itThrowsWhenProductNotFound(): void
     {
         $productRepo = $this->createMock(ProductRepositoryInterface::class);
         $productRepo->method('findById')->willReturn(null);

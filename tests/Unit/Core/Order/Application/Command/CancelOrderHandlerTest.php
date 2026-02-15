@@ -20,7 +20,7 @@ use PHPUnit\Framework\TestCase;
 final class CancelOrderHandlerTest extends TestCase
 {
     #[Test]
-    public function it_cancels_a_pending_order(): void
+    public function itCancelsAPendingOrder(): void
     {
         $orderId = OrderId::generate();
         $order = Order::place($orderId, 'Alice', [
@@ -29,7 +29,7 @@ final class CancelOrderHandlerTest extends TestCase
 
         $repository = $this->createMock(OrderRepositoryInterface::class);
         $repository->method('findById')->willReturn($order);
-        $repository->expects(self::once())->method('save');
+        $repository->expects($this->once())->method('save');
 
         $handler = new CancelOrderHandler($repository);
 
@@ -39,7 +39,7 @@ final class CancelOrderHandlerTest extends TestCase
     }
 
     #[Test]
-    public function it_throws_when_order_not_found(): void
+    public function itThrowsWhenOrderNotFound(): void
     {
         $repository = $this->createMock(OrderRepositoryInterface::class);
         $repository->method('findById')->willReturn(null);

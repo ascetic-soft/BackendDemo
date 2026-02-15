@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace App\Repository;
 
 use AsceticSoft\Rowcast\Connection;
-use AsceticSoft\Rowcast\DataMapper;
-use AsceticSoft\Rowcast\Mapping\ResultSetMapping;
 use Core\Order\Domain\Entity\Order;
 use Core\Order\Domain\Entity\OrderLine;
 use Core\Order\Domain\Repository\OrderRepositoryInterface;
@@ -18,13 +16,9 @@ use DateTimeImmutable;
 
 final readonly class OrderRepository implements OrderRepositoryInterface
 {
-    private DataMapper $mapper;
-
     public function __construct(
         private Connection $connection,
-    ) {
-        $this->mapper = new DataMapper($this->connection);
-    }
+    ) {}
 
     public function findById(OrderId $id): ?Order
     {
@@ -73,73 +67,85 @@ final readonly class OrderRepository implements OrderRepositoryInterface
     public function delete(OrderId $id): void
     {
         $this->connection->transactional(function () use ($id): void {
-            $this->mapper->delete(
-                $this->createOrderLineRsm(),
-                ['order_id' => $id->value],
+            $this->connection->executeStatement(
+                'DELETE FROM order_lines WHERE order_id = ?',
+                [$id->value],
             );
-            $this->mapper->delete(
-                $this->createOrderRsm(),
-                ['id' => $id->value],
+            $this->connection->executeStatement(
+                'DELETE FROM orders WHERE id = ?',
+                [$id->value],
             );
         });
     }
 
     private function insertOrder(Order $order): void
     {
-        $rsm = $this->createOrderRsm();
-        $orderData = new OrderRow();
-        $orderData->id = $order->getId()->value;
-        $orderData->status = $order->getStatus()->value;
-        $orderData->customerName = $order->getCustomerName();
         $total = $order->getTotal();
-        $orderData->totalAmount = $total->amount;
-        $orderData->totalCurrency = $total->currency;
-        $orderData->createdAt = $order->getCreatedAt();
-        $orderData->updatedAt = $order->getUpdatedAt();
 
-        $this->mapper->insert($rsm, $orderData);
+        $this->connection->executeStatement(
+            'INSERT INTO orders (id, status, customer_name, total_amount, total_currency, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [
+                $order->getId()->value,
+                $order->getStatus()->value,
+                $order->getCustomerName(),
+                $total->amount,
+                $total->currency,
+                $order->getCreatedAt()->format('Y-m-d H:i:s'),
+                $order->getUpdatedAt()->format('Y-m-d H:i:s'),
+            ],
+        );
 
-        foreach ($order->getLines() as $index => $line) {
-            $this->insertOrderLine($order->getId(), $index, $line);
+        foreach ($order->getLines() as $position => $line) {
+            $this->insertOrderLine($order->getId(), $position, $line);
         }
     }
 
     private function updateOrder(Order $order): void
     {
-        $rsm = $this->createOrderRsm();
-        $orderData = new OrderRow();
-        $orderData->id = $order->getId()->value;
-        $orderData->status = $order->getStatus()->value;
-        $orderData->customerName = $order->getCustomerName();
         $total = $order->getTotal();
-        $orderData->totalAmount = $total->amount;
-        $orderData->totalCurrency = $total->currency;
-        $orderData->createdAt = $order->getCreatedAt();
-        $orderData->updatedAt = $order->getUpdatedAt();
 
-        $this->mapper->update($rsm, $orderData, ['id' => $order->getId()->value]);
+        $this->connection->executeStatement(
+            'UPDATE orders
+             SET status = ?, customer_name = ?, total_amount = ?, total_currency = ?, created_at = ?, updated_at = ?
+             WHERE id = ?',
+            [
+                $order->getStatus()->value,
+                $order->getCustomerName(),
+                $total->amount,
+                $total->currency,
+                $order->getCreatedAt()->format('Y-m-d H:i:s'),
+                $order->getUpdatedAt()->format('Y-m-d H:i:s'),
+                $order->getId()->value,
+            ],
+        );
 
         // Replace lines: delete old, insert new
-        $this->mapper->delete($this->createOrderLineRsm(), ['order_id' => $order->getId()->value]);
+        $this->connection->executeStatement(
+            'DELETE FROM order_lines WHERE order_id = ?',
+            [$order->getId()->value],
+        );
 
-        foreach ($order->getLines() as $index => $line) {
-            $this->insertOrderLine($order->getId(), $index, $line);
+        foreach ($order->getLines() as $position => $line) {
+            $this->insertOrderLine($order->getId(), $position, $line);
         }
     }
 
     private function insertOrderLine(OrderId $orderId, int $position, OrderLine $line): void
     {
-        $rsm = $this->createOrderLineRsm();
-        $row = new OrderLineRow();
-        $row->orderId = $orderId->value;
-        $row->position = $position;
-        $row->productId = $line->getProductId()->value;
-        $row->productName = $line->getProductName();
-        $row->unitPriceAmount = $line->getUnitPrice()->amount;
-        $row->unitPriceCurrency = $line->getUnitPrice()->currency;
-        $row->quantity = $line->getQuantity();
-
-        $this->mapper->insert($rsm, $row);
+        $this->connection->executeStatement(
+            'INSERT INTO order_lines (order_id, position, product_id, product_name, unit_price_amount, unit_price_currency, quantity)
+             VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [
+                $orderId->value,
+                $position,
+                $line->getProductId()->value,
+                $line->getProductName(),
+                $line->getUnitPrice()->amount,
+                $line->getUnitPrice()->currency,
+                $line->getQuantity(),
+            ],
+        );
     }
 
     /**
@@ -183,33 +189,5 @@ final readonly class OrderRepository implements OrderRepositoryInterface
             createdAt: new DateTimeImmutable($createdAt),
             updatedAt: new DateTimeImmutable($updatedAt),
         );
-    }
-
-    private function createOrderRsm(): ResultSetMapping
-    {
-        $rsm = new ResultSetMapping(OrderRow::class, table: 'orders');
-        $rsm->addField('id', 'id')
-            ->addField('status', 'status')
-            ->addField('customer_name', 'customerName')
-            ->addField('total_amount', 'totalAmount')
-            ->addField('total_currency', 'totalCurrency')
-            ->addField('created_at', 'createdAt')
-            ->addField('updated_at', 'updatedAt');
-
-        return $rsm;
-    }
-
-    private function createOrderLineRsm(): ResultSetMapping
-    {
-        $rsm = new ResultSetMapping(OrderLineRow::class, table: 'order_lines');
-        $rsm->addField('order_id', 'orderId')
-            ->addField('position', 'position')
-            ->addField('product_id', 'productId')
-            ->addField('product_name', 'productName')
-            ->addField('unit_price_amount', 'unitPriceAmount')
-            ->addField('unit_price_currency', 'unitPriceCurrency')
-            ->addField('quantity', 'quantity');
-
-        return $rsm;
     }
 }

@@ -11,19 +11,18 @@ use Core\Order\Domain\ValueObject\OrderId;
 use Core\Product\Domain\Exception\ProductNotFoundException;
 use Core\Product\Domain\Repository\ProductRepositoryInterface;
 use Core\Product\Domain\ValueObject\ProductId;
-use Core\SharedKernel\CQRS\CommandHandlerInterface;
+use Core\SharedKernel\CQRS\AsCommandHandler;
 
-final readonly class PlaceOrderHandler implements CommandHandlerInterface
+#[AsCommandHandler(PlaceOrder::class)]
+final readonly class PlaceOrderHandler
 {
     public function __construct(
         private OrderRepositoryInterface $orderRepository,
         private ProductRepositoryInterface $productRepository,
     ) {}
 
-    public function __invoke(object $command): void
+    public function __invoke(PlaceOrder $command): void
     {
-        \assert($command instanceof PlaceOrder);
-
         $orderLines = [];
 
         foreach ($command->lines as $line) {

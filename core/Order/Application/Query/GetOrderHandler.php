@@ -9,18 +9,17 @@ use Core\Order\Application\DTO\OrderLineDTO;
 use Core\Order\Domain\Exception\OrderNotFoundException;
 use Core\Order\Domain\Repository\OrderRepositoryInterface;
 use Core\Order\Domain\ValueObject\OrderId;
-use Core\SharedKernel\CQRS\QueryHandlerInterface;
+use Core\SharedKernel\CQRS\AsQueryHandler;
 
-final readonly class GetOrderHandler implements QueryHandlerInterface
+#[AsQueryHandler(GetOrder::class)]
+final readonly class GetOrderHandler
 {
     public function __construct(
         private OrderRepositoryInterface $repository,
     ) {}
 
-    public function __invoke(object $query): OrderDTO
+    public function __invoke(GetOrder $query): OrderDTO
     {
-        \assert($query instanceof GetOrder);
-
         $orderId = new OrderId($query->id);
         $order = $this->repository->findById($orderId);
 

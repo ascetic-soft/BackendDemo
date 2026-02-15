@@ -12,7 +12,7 @@ use PHPUnit\Framework\TestCase;
 final class MoneyTest extends TestCase
 {
     #[Test]
-    public function it_creates_with_valid_amount(): void
+    public function itCreatesWithValidAmount(): void
     {
         $money = new Money(1999, 'USD');
 
@@ -21,7 +21,7 @@ final class MoneyTest extends TestCase
     }
 
     #[Test]
-    public function it_rejects_negative_amount(): void
+    public function itRejectsNegativeAmount(): void
     {
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('cannot be negative');
@@ -30,7 +30,7 @@ final class MoneyTest extends TestCase
     }
 
     #[Test]
-    public function it_rejects_invalid_currency_code(): void
+    public function itRejectsInvalidCurrencyCode(): void
     {
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('3-letter ISO 4217');
@@ -39,7 +39,7 @@ final class MoneyTest extends TestCase
     }
 
     #[Test]
-    public function it_adds_same_currency(): void
+    public function itAddsSameCurrency(): void
     {
         $a = new Money(1000, 'USD');
         $b = new Money(500, 'USD');
@@ -50,7 +50,7 @@ final class MoneyTest extends TestCase
     }
 
     #[Test]
-    public function it_rejects_adding_different_currencies(): void
+    public function itRejectsAddingDifferentCurrencies(): void
     {
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('different currencies');
@@ -61,7 +61,7 @@ final class MoneyTest extends TestCase
     }
 
     #[Test]
-    public function it_multiplies(): void
+    public function itMultiplies(): void
     {
         $money = new Money(500, 'USD');
         $result = $money->multiply(3);
@@ -71,7 +71,7 @@ final class MoneyTest extends TestCase
     }
 
     #[Test]
-    public function it_rejects_negative_multiplier(): void
+    public function itRejectsNegativeMultiplier(): void
     {
         $this->expectException(InvalidArgumentException::class);
 
@@ -80,7 +80,7 @@ final class MoneyTest extends TestCase
     }
 
     #[Test]
-    public function equals_returns_true_for_same_values(): void
+    public function equalsReturnsTrueForSameValues(): void
     {
         $a = new Money(1000, 'USD');
         $b = new Money(1000, 'USD');
@@ -89,7 +89,7 @@ final class MoneyTest extends TestCase
     }
 
     #[Test]
-    public function equals_returns_false_for_different_amount(): void
+    public function equalsReturnsFalseForDifferentAmount(): void
     {
         $a = new Money(1000, 'USD');
         $b = new Money(999, 'USD');
@@ -98,7 +98,7 @@ final class MoneyTest extends TestCase
     }
 
     #[Test]
-    public function equals_returns_false_for_different_currency(): void
+    public function equalsReturnsFalseForDifferentCurrency(): void
     {
         $a = new Money(1000, 'USD');
         $b = new Money(1000, 'EUR');

@@ -12,7 +12,7 @@ use PHPUnit\Framework\TestCase;
 final class ProductNameTest extends TestCase
 {
     #[Test]
-    public function it_creates_with_valid_name(): void
+    public function itCreatesWithValidName(): void
     {
         $name = new ProductName('Laptop Pro');
 
@@ -20,7 +20,7 @@ final class ProductNameTest extends TestCase
     }
 
     #[Test]
-    public function it_trims_whitespace(): void
+    public function itTrimsWhitespace(): void
     {
         $name = new ProductName('  Laptop Pro  ');
 
@@ -28,7 +28,7 @@ final class ProductNameTest extends TestCase
     }
 
     #[Test]
-    public function it_rejects_empty_name(): void
+    public function itRejectsEmptyName(): void
     {
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('cannot be empty');
@@ -37,7 +37,7 @@ final class ProductNameTest extends TestCase
     }
 
     #[Test]
-    public function it_rejects_whitespace_only(): void
+    public function itRejectsWhitespaceOnly(): void
     {
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('cannot be empty');
@@ -46,7 +46,7 @@ final class ProductNameTest extends TestCase
     }
 
     #[Test]
-    public function it_rejects_name_exceeding_255_chars(): void
+    public function itRejectsNameExceeding255Chars(): void
     {
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('cannot exceed 255 characters');
@@ -55,7 +55,7 @@ final class ProductNameTest extends TestCase
     }
 
     #[Test]
-    public function it_accepts_255_char_name(): void
+    public function itAccepts255CharName(): void
     {
         $name = new ProductName(\str_repeat('a', 255));
 
@@ -63,7 +63,7 @@ final class ProductNameTest extends TestCase
     }
 
     #[Test]
-    public function equals_returns_true_for_same_value(): void
+    public function equalsReturnsTrueForSameValue(): void
     {
         $name1 = new ProductName('Laptop');
         $name2 = new ProductName('Laptop');
@@ -72,7 +72,7 @@ final class ProductNameTest extends TestCase
     }
 
     #[Test]
-    public function equals_returns_false_for_different_value(): void
+    public function equalsReturnsFalseForDifferentValue(): void
     {
         $name1 = new ProductName('Laptop');
         $name2 = new ProductName('Desktop');

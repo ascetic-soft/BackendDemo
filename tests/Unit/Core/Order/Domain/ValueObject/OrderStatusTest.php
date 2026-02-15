@@ -34,7 +34,7 @@ final class OrderStatusTest extends TestCase
 
     #[Test]
     #[DataProvider('transitionProvider')]
-    public function it_validates_transitions(OrderStatus $from, OrderStatus $to, bool $expected): void
+    public function itValidatesTransitions(OrderStatus $from, OrderStatus $to, bool $expected): void
     {
         self::assertSame($expected, $from->canTransitionTo($to));
     }

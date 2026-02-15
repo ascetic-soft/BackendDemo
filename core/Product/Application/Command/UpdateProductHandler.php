@@ -9,18 +9,17 @@ use Core\Product\Domain\Repository\ProductRepositoryInterface;
 use Core\Product\Domain\ValueObject\Money;
 use Core\Product\Domain\ValueObject\ProductId;
 use Core\Product\Domain\ValueObject\ProductName;
-use Core\SharedKernel\CQRS\CommandHandlerInterface;
+use Core\SharedKernel\CQRS\AsCommandHandler;
 
-final readonly class UpdateProductHandler implements CommandHandlerInterface
+#[AsCommandHandler(UpdateProduct::class)]
+final readonly class UpdateProductHandler
 {
     public function __construct(
         private ProductRepositoryInterface $repository,
     ) {}
 
-    public function __invoke(object $command): void
+    public function __invoke(UpdateProduct $command): void
     {
-        \assert($command instanceof UpdateProduct);
-
         $productId = new ProductId($command->id);
         $product = $this->repository->findById($productId);
 

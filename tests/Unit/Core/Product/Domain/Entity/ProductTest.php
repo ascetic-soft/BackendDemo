@@ -15,7 +15,7 @@ use PHPUnit\Framework\TestCase;
 final class ProductTest extends TestCase
 {
     #[Test]
-    public function it_creates_a_product(): void
+    public function itCreatesAProduct(): void
     {
         $id = ProductId::generate();
         $name = new ProductName('Laptop Pro');
@@ -32,7 +32,7 @@ final class ProductTest extends TestCase
     }
 
     #[Test]
-    public function it_renames_a_product(): void
+    public function itRenamesAProduct(): void
     {
         $product = $this->createProduct();
         $oldUpdatedAt = $product->getUpdatedAt();
@@ -44,7 +44,7 @@ final class ProductTest extends TestCase
     }
 
     #[Test]
-    public function it_changes_price(): void
+    public function itChangesPrice(): void
     {
         $product = $this->createProduct();
 
@@ -55,7 +55,7 @@ final class ProductTest extends TestCase
     }
 
     #[Test]
-    public function it_updates_description(): void
+    public function itUpdatesDescription(): void
     {
         $product = $this->createProduct();
 
@@ -65,7 +65,7 @@ final class ProductTest extends TestCase
     }
 
     #[Test]
-    public function it_reconstitutes_from_persistence(): void
+    public function itReconstitutesFromPersistence(): void
     {
         $id = ProductId::generate();
         $name = new ProductName('Keyboard');

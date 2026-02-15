@@ -9,18 +9,17 @@ use Core\Product\Domain\Repository\ProductRepositoryInterface;
 use Core\Product\Domain\ValueObject\Money;
 use Core\Product\Domain\ValueObject\ProductId;
 use Core\Product\Domain\ValueObject\ProductName;
-use Core\SharedKernel\CQRS\CommandHandlerInterface;
+use Core\SharedKernel\CQRS\AsCommandHandler;
 
-final readonly class CreateProductHandler implements CommandHandlerInterface
+#[AsCommandHandler(CreateProduct::class)]
+final readonly class CreateProductHandler
 {
     public function __construct(
         private ProductRepositoryInterface $repository,
     ) {}
 
-    public function __invoke(object $command): void
+    public function __invoke(CreateProduct $command): void
     {
-        \assert($command instanceof CreateProduct);
-
         $product = Product::create(
             id: ProductId::generate(),
             name: new ProductName($command->name),

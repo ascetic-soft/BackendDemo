@@ -14,11 +14,11 @@ use PHPUnit\Framework\TestCase;
 final class CreateProductHandlerTest extends TestCase
 {
     #[Test]
-    public function it_creates_and_saves_a_product(): void
+    public function itCreatesAndSavesAProduct(): void
     {
         $repository = $this->createMock(ProductRepositoryInterface::class);
 
-        $repository->expects(self::once())
+        $repository->expects($this->once())
             ->method('save')
             ->with(self::callback(static function (Product $product): bool {
                 return $product->getName()->value === 'Widget'

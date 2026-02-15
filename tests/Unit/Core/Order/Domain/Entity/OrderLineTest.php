@@ -14,7 +14,7 @@ use PHPUnit\Framework\TestCase;
 final class OrderLineTest extends TestCase
 {
     #[Test]
-    public function it_creates_order_line(): void
+    public function itCreatesOrderLine(): void
     {
         $productId = ProductId::generate();
         $unitPrice = new Money(1500, 'USD');
@@ -28,7 +28,7 @@ final class OrderLineTest extends TestCase
     }
 
     #[Test]
-    public function it_calculates_line_total(): void
+    public function itCalculatesLineTotal(): void
     {
         $line = new OrderLine(
             ProductId::generate(),
@@ -44,7 +44,7 @@ final class OrderLineTest extends TestCase
     }
 
     #[Test]
-    public function it_rejects_zero_quantity(): void
+    public function itRejectsZeroQuantity(): void
     {
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('at least 1');
@@ -58,7 +58,7 @@ final class OrderLineTest extends TestCase
     }
 
     #[Test]
-    public function it_rejects_negative_quantity(): void
+    public function itRejectsNegativeQuantity(): void
     {
         $this->expectException(InvalidArgumentException::class);
 

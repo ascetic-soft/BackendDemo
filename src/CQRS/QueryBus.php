@@ -5,22 +5,20 @@ declare(strict_types=1);
 namespace App\CQRS;
 
 use AsceticSoft\Wirebox\Container;
-use Core\SharedKernel\CQRS\QueryHandlerInterface;
+use Core\SharedKernel\CQRS\AsQueryHandler;
 use Core\SharedKernel\CQRS\QueryInterface;
-use ReflectionException;
-use ReflectionMethod;
-use ReflectionNamedType;
+use ReflectionClass;
 use RuntimeException;
 
 /**
  * Routes queries to their handlers using Wirebox tagged services.
  *
  * Each handler is resolved via the 'query.handler' tag and matched
- * by inspecting the __invoke parameter type-hint.
+ * by the query class declared in the #[AsQueryHandler] attribute.
  */
 final class QueryBus
 {
-    /** @var array<class-string, QueryHandlerInterface>|null */
+    /** @var array<class-string, callable>|null */
     private ?array $handlerMap = null;
 
     public function __construct(
@@ -34,7 +32,7 @@ final class QueryBus
         return ($handler)($query);
     }
 
-    private function resolveHandler(QueryInterface $query): QueryHandlerInterface
+    private function resolveHandler(QueryInterface $query): callable
     {
         $map = $this->getHandlerMap();
         $queryClass = $query::class;
@@ -47,7 +45,7 @@ final class QueryBus
     }
 
     /**
-     * @return array<class-string, QueryHandlerInterface>
+     * @return array<class-string, callable>
      */
     private function getHandlerMap(): array
     {
@@ -58,8 +56,7 @@ final class QueryBus
         $this->handlerMap = [];
 
         foreach ($this->container->getTagged('query.handler') as $handler) {
-            \assert($handler instanceof QueryHandlerInterface);
-            $queryClass = self::extractParameterType($handler);
+            $queryClass = self::extractQueryClass($handler);
 
             if ($queryClass !== null) {
                 $this->handlerMap[$queryClass] = $handler;
@@ -72,26 +69,18 @@ final class QueryBus
     /**
      * @return class-string|null
      */
-    private static function extractParameterType(QueryHandlerInterface $handler): ?string
+    private static function extractQueryClass(object $handler): ?string
     {
-        try {
-            $ref = new ReflectionMethod($handler, '__invoke');
-            $params = $ref->getParameters();
+        $ref = new ReflectionClass($handler);
+        $attrs = $ref->getAttributes(AsQueryHandler::class);
 
-            if ($params === []) {
-                return null;
-            }
-
-            $type = $params[0]->getType();
-
-            if ($type instanceof ReflectionNamedType && !$type->isBuiltin()) {
-                /** @var class-string */
-                return $type->getName();
-            }
-        } catch (ReflectionException) {
-            // ignore
+        if ($attrs === []) {
+            return null;
         }
 
-        return null;
+        /** @var AsQueryHandler $attr */
+        $attr = $attrs[0]->newInstance();
+
+        return $attr->query;
     }
 }

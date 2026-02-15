@@ -8,9 +8,10 @@ use Core\Order\Application\DTO\OrderDTO;
 use Core\Order\Application\DTO\OrderLineDTO;
 use Core\Order\Domain\Entity\Order;
 use Core\Order\Domain\Repository\OrderRepositoryInterface;
-use Core\SharedKernel\CQRS\QueryHandlerInterface;
+use Core\SharedKernel\CQRS\AsQueryHandler;
 
-final readonly class ListOrdersHandler implements QueryHandlerInterface
+#[AsQueryHandler(ListOrders::class)]
+final readonly class ListOrdersHandler
 {
     public function __construct(
         private OrderRepositoryInterface $repository,
@@ -19,10 +20,8 @@ final readonly class ListOrdersHandler implements QueryHandlerInterface
     /**
      * @return list<OrderDTO>
      */
-    public function __invoke(object $query): array
+    public function __invoke(ListOrders $query): array
     {
-        \assert($query instanceof ListOrders);
-
         $orders = $this->repository->findAll($query->limit, $query->offset);
 
         return \array_map(static function (Order $order): OrderDTO {
