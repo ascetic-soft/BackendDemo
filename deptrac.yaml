@@ -1,0 +1,65 @@
+deptrac:
+  paths:
+    - core
+    - src
+
+  layers:
+    # ── Shared Kernel ──────────────────────────────────────────
+    - name: SharedKernel
+      collectors:
+        - type: classNameRegex
+          value: '#^Core\\\\SharedKernel\\\\#'
+
+    # ── Product Bounded Context ────────────────────────────────
+    - name: ProductDomain
+      collectors:
+        - type: classNameRegex
+          value: '#^Core\\\\Product\\\\Domain\\\\#'
+
+    - name: ProductApplication
+      collectors:
+        - type: classNameRegex
+          value: '#^Core\\\\Product\\\\Application\\\\#'
+
+    # ── Order Bounded Context ──────────────────────────────────
+    - name: OrderDomain
+      collectors:
+        - type: classNameRegex
+          value: '#^Core\\\\Order\\\\Domain\\\\#'
+
+    - name: OrderApplication
+      collectors:
+        - type: classNameRegex
+          value: '#^Core\\\\Order\\\\Application\\\\#'
+
+    # ── Infrastructure (src/) ──────────────────────────────────
+    - name: Infrastructure
+      collectors:
+        - type: classNameRegex
+          value: '#^App\\\\#'
+
+  ruleset:
+    # SharedKernel — base layer, no outgoing dependencies to other layers
+    SharedKernel: ~
+
+    # Domain layers depend only on SharedKernel
+    ProductDomain:
+      - SharedKernel
+    OrderDomain:
+      - SharedKernel
+
+    # Application layers depend on their own Domain + SharedKernel
+    ProductApplication:
+      - ProductDomain
+      - SharedKernel
+    OrderApplication:
+      - OrderDomain
+      - SharedKernel
+
+    # Infrastructure may depend on all core layers
+    Infrastructure:
+      - ProductApplication
+      - ProductDomain
+      - OrderApplication
+      - OrderDomain
+      - SharedKernel

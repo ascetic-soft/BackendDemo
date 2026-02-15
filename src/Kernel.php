@@ -39,8 +39,6 @@ final class Kernel
         $builder->registerForAutoconfiguration(MiddlewareInterface::class);
         $builder->registerForAutoconfiguration(CommandInterface::class);
         $builder->registerForAutoconfiguration(QueryInterface::class);
-        $builder->registerForAutoconfiguration(\Stringable::class);
-        $builder->registerForAutoconfiguration(\Throwable::class);
 
         // Scan application services (infrastructure layer)
         $builder->scan($this->projectDir . '/src');

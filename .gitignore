@@ -6,6 +6,8 @@
 composer.lock
 .php-cs-fixer.cache
 .phpunit.result.cache
+.deptrac.cache
 .phpunit.cache/
 .idea/
 /article.md
+/.deptrac.cache
