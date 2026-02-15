@@ -11,7 +11,7 @@ use Core\Product\Domain\ValueObject\ProductId;
 use Core\Product\Domain\ValueObject\ProductName;
 use Core\SharedKernel\CQRS\AsCommandHandler;
 
-#[AsCommandHandler(UpdateProduct::class)]
+#[AsCommandHandler]
 final readonly class UpdateProductHandler
 {
     public function __construct(

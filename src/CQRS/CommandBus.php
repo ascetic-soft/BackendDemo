@@ -8,6 +8,7 @@ use AsceticSoft\Wirebox\Container;
 use Core\SharedKernel\CQRS\AsCommandHandler;
 use Core\SharedKernel\CQRS\CommandInterface;
 use ReflectionClass;
+use ReflectionNamedType;
 use RuntimeException;
 
 /**
@@ -53,13 +54,31 @@ final class CommandBus
         }
 
         $this->handlerMap = [];
+        /** @var array<class-string, class-string> $seen */
+        $seen = [];
 
         foreach ($this->container->getTagged('command.handler') as $handler) {
+            if (!\is_callable($handler)) {
+                throw new RuntimeException(\sprintf('Handler "%s" is not callable.', $handler::class));
+            }
+
             $commandClass = self::extractCommandClass($handler);
 
-            if ($commandClass !== null) {
-                $this->handlerMap[$commandClass] = $handler;
+            if ($commandClass === null) {
+                continue;
             }
+
+            if (isset($seen[$commandClass])) {
+                throw new RuntimeException(\sprintf(
+                    'Duplicate handler for command "%s": "%s" and "%s".',
+                    $commandClass,
+                    $seen[$commandClass],
+                    $handler::class,
+                ));
+            }
+
+            $seen[$commandClass] = $handler::class;
+            $this->handlerMap[$commandClass] = $handler;
         }
 
         return $this->handlerMap;
@@ -80,6 +99,35 @@ final class CommandBus
         /** @var AsCommandHandler $attr */
         $attr = $attrs[0]->newInstance();
 
-        return $attr->command;
+        return $attr->command ?? self::resolveCommandFromInvoke($ref);
+    }
+
+    /**
+     * Resolves the command class from the first parameter type of __invoke().
+     *
+     * @param ReflectionClass<object> $ref
+     *
+     * @return class-string|null
+     */
+    private static function resolveCommandFromInvoke(ReflectionClass $ref): ?string
+    {
+        if (!$ref->hasMethod('__invoke')) {
+            return null;
+        }
+
+        $params = $ref->getMethod('__invoke')->getParameters();
+
+        if ($params === []) {
+            return null;
+        }
+
+        $type = $params[0]->getType();
+
+        if (!$type instanceof ReflectionNamedType || $type->isBuiltin()) {
+            return null;
+        }
+
+        /** @var class-string */
+        return $type->getName();
     }
 }

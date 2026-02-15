@@ -10,7 +10,7 @@ use Core\Order\Domain\Entity\Order;
 use Core\Order\Domain\Repository\OrderRepositoryInterface;
 use Core\SharedKernel\CQRS\AsQueryHandler;
 
-#[AsQueryHandler(ListOrders::class)]
+#[AsQueryHandler]
 final readonly class ListOrdersHandler
 {
     public function __construct(

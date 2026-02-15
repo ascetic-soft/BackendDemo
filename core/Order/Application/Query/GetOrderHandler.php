@@ -6,12 +6,13 @@ namespace Core\Order\Application\Query;
 
 use Core\Order\Application\DTO\OrderDTO;
 use Core\Order\Application\DTO\OrderLineDTO;
+use Core\Order\Domain\Entity\Order;
 use Core\Order\Domain\Exception\OrderNotFoundException;
 use Core\Order\Domain\Repository\OrderRepositoryInterface;
 use Core\Order\Domain\ValueObject\OrderId;
 use Core\SharedKernel\CQRS\AsQueryHandler;
 
-#[AsQueryHandler(GetOrder::class)]
+#[AsQueryHandler]
 final readonly class GetOrderHandler
 {
     public function __construct(
@@ -30,7 +31,7 @@ final readonly class GetOrderHandler
         return self::toDTO($order);
     }
 
-    private static function toDTO(\Core\Order\Domain\Entity\Order $order): OrderDTO
+    private static function toDTO(Order $order): OrderDTO
     {
         $dto = new OrderDTO();
         $dto->id = $order->getId()->value;

@@ -8,7 +8,7 @@ use Core\Product\Application\DTO\ProductDTO;
 use Core\Product\Domain\Repository\ProductRepositoryInterface;
 use Core\SharedKernel\CQRS\AsQueryHandler;
 
-#[AsQueryHandler(ListProducts::class)]
+#[AsQueryHandler]
 final readonly class ListProductsHandler
 {
     public function __construct(

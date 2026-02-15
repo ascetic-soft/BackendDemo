@@ -10,7 +10,7 @@ use Core\Product\Domain\Repository\ProductRepositoryInterface;
 use Core\Product\Domain\ValueObject\ProductId;
 use Core\SharedKernel\CQRS\AsQueryHandler;
 
-#[AsQueryHandler(GetProduct::class)]
+#[AsQueryHandler]
 final readonly class GetProductHandler
 {
     public function __construct(

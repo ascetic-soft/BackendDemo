@@ -13,7 +13,7 @@ use Core\Product\Domain\Repository\ProductRepositoryInterface;
 use Core\Product\Domain\ValueObject\ProductId;
 use Core\SharedKernel\CQRS\AsCommandHandler;
 
-#[AsCommandHandler(PlaceOrder::class)]
+#[AsCommandHandler]
 final readonly class PlaceOrderHandler
 {
     public function __construct(

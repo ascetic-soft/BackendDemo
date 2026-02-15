@@ -9,7 +9,7 @@ use Core\Order\Domain\Repository\OrderRepositoryInterface;
 use Core\Order\Domain\ValueObject\OrderId;
 use Core\SharedKernel\CQRS\AsCommandHandler;
 
-#[AsCommandHandler(CancelOrder::class)]
+#[AsCommandHandler]
 final readonly class CancelOrderHandler
 {
     public function __construct(
