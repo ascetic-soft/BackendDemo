@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Controller;
 
-use App\CQRS\CommandBus;
-use App\CQRS\QueryBus;
 use AsceticSoft\Waypoint\Attribute\Route;
 use Core\Order\Application\Command\CancelOrder;
 use Core\Order\Application\Command\PlaceOrder;
@@ -14,24 +12,16 @@ use Core\Order\Application\DTO\OrderDTO;
 use Core\Order\Application\DTO\OrderLineDTO;
 use Core\Order\Application\Query\GetOrder;
 use Core\Order\Application\Query\ListOrders;
-use Nyholm\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
 #[Route('/api/orders')]
-final readonly class OrderController
+final readonly class OrderController extends AbstractController
 {
-    public function __construct(
-        private CommandBus $commandBus,
-        private QueryBus $queryBus,
-    ) {}
-
     #[Route('/', methods: ['GET'], name: 'orders.list')]
     public function list(ServerRequestInterface $request): ResponseInterface
     {
-        $params = $request->getQueryParams();
-        $limit = (int) ($params['limit'] ?? 50);
-        $offset = (int) ($params['offset'] ?? 0);
+        [$limit, $offset] = self::pagination($request);
 
         /** @var list<OrderDTO> $orders */
         $orders = $this->queryBus->dispatch(new ListOrders($limit, $offset));
@@ -117,18 +107,5 @@ final readonly class OrderController
             'quantity' => $dto->quantity,
             'line_total' => $dto->lineTotalAmount,
         ];
-    }
-
-    /**
-     * @param array<string, mixed>|list<array<string, mixed>> $data
-     */
-    private static function json(int $status, array $data): ResponseInterface
-    {
-        $body = \json_encode($data, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
-
-        $response = new Response($status);
-        $response->getBody()->write($body);
-
-        return $response->withHeader('Content-Type', 'application/json; charset=utf-8');
     }
 }

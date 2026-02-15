@@ -4,32 +4,22 @@ declare(strict_types=1);
 
 namespace App\Http\Controller;
 
-use App\CQRS\CommandBus;
-use App\CQRS\QueryBus;
 use AsceticSoft\Waypoint\Attribute\Route;
 use Core\Product\Application\Command\CreateProduct;
 use Core\Product\Application\Command\UpdateProduct;
 use Core\Product\Application\DTO\ProductDTO;
 use Core\Product\Application\Query\GetProduct;
 use Core\Product\Application\Query\ListProducts;
-use Nyholm\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
 #[Route('/api/products')]
-final readonly class ProductController
+final readonly class ProductController extends AbstractController
 {
-    public function __construct(
-        private CommandBus $commandBus,
-        private QueryBus $queryBus,
-    ) {}
-
     #[Route('/', methods: ['GET'], name: 'products.list')]
     public function list(ServerRequestInterface $request): ResponseInterface
     {
-        $params = $request->getQueryParams();
-        $limit = (int) ($params['limit'] ?? 50);
-        $offset = (int) ($params['offset'] ?? 0);
+        [$limit, $offset] = self::pagination($request);
 
         /** @var list<ProductDTO> $products */
         $products = $this->queryBus->dispatch(new ListProducts($limit, $offset));
@@ -93,43 +83,5 @@ final readonly class ProductController
             'created_at' => $dto->createdAt->format('c'),
             'updated_at' => $dto->updatedAt->format('c'),
         ];
-    }
-
-    /**
-     * @param array<string, mixed>|list<array<string, mixed>> $data
-     */
-    private static function json(int $status, array $data): ResponseInterface
-    {
-        $body = \json_encode($data, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
-
-        $response = new Response($status);
-        $response->getBody()->write($body);
-
-        return $response->withHeader('Content-Type', 'application/json; charset=utf-8');
-    }
-
-    /**
-     * @return array<string, string|int|float|bool|null>
-     */
-    private static function parseBody(ServerRequestInterface $request): array
-    {
-        /** @var array<string, string|int|float|bool|null> */
-        return (array) $request->getParsedBody();
-    }
-
-    /**
-     * @param array<string, string|int|float|bool|null> $body
-     */
-    private static function str(array $body, string $key, string $default = ''): string
-    {
-        return isset($body[$key]) ? (string) $body[$key] : $default;
-    }
-
-    /**
-     * @param array<string, string|int|float|bool|null> $body
-     */
-    private static function int(array $body, string $key, int $default = 0): int
-    {
-        return isset($body[$key]) ? (int) $body[$key] : $default;
     }
 }
