@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Integration;
 
+use AsceticSoft\Psr7\ServerRequest;
 use AsceticSoft\Rowcast\Connection;
 use AsceticSoft\Waypoint\Router;
-use Nyholm\Psr7\ServerRequest;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 

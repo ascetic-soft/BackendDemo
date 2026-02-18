@@ -6,7 +6,7 @@ namespace App\Http\Controller;
 
 use App\CQRS\CommandBus;
 use App\CQRS\QueryBus;
-use Nyholm\Psr7\Response;
+use AsceticSoft\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 

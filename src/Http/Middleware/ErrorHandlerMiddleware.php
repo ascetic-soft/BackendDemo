@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use AsceticSoft\Psr7\Response;
 use Core\Order\Domain\Exception\OrderNotFoundException;
 use Core\Product\Domain\Exception\ProductNotFoundException;
 use InvalidArgumentException;
 use LogicException;
-use Nyholm\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;

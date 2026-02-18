@@ -3,8 +3,7 @@
 declare(strict_types=1);
 
 use App\Kernel;
-use Nyholm\Psr7\Factory\Psr17Factory;
-use Nyholm\Psr7Server\ServerRequestCreator;
+use AsceticSoft\Psr7\ServerRequestCreator;
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
@@ -13,16 +12,7 @@ $container = $kernel->boot();
 
 $router = $kernel->getRouter();
 
-$factory = new Psr17Factory();
-// Create PSR-7 request from globals
-$creator = new ServerRequestCreator(
-    $factory,
-    $factory,
-    $factory,
-    $factory,
-);
-
-$request = $creator->fromGlobals();
+$request = ServerRequestCreator::fromGlobals();
 
 // Handle the request
 $response = $router->handle($request);
