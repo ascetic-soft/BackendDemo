@@ -2,7 +2,6 @@
 /var/
 /.env
 /.env.local.php
-/public/index.php
 composer.lock
 .php-cs-fixer.cache
 .phpunit.result.cache
