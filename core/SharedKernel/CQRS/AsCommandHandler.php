@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Core\SharedKernel\CQRS;
 
-use AsceticSoft\Wirebox\Attribute\AutoconfigureTag;
 use Attribute;
 
 /**
@@ -20,7 +19,6 @@ use Attribute;
  *   }
  */
 #[Attribute(Attribute::TARGET_CLASS)]
-#[AutoconfigureTag('command.handler')]
 final readonly class AsCommandHandler
 {
     /**
