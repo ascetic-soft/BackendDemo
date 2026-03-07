@@ -114,16 +114,14 @@ final readonly class OrderRepository implements OrderRepositoryInterface
             return;
         }
 
-        $placeholders = \implode(', ', \array_fill(0, \count($positions), '?'));
-        $params = \array_merge([$orderId], $positions);
-
-        $this->connection->executeStatement(
-            \sprintf(
-                'DELETE FROM order_lines WHERE order_id = ? AND position NOT IN (%s)',
-                $placeholders,
-            ),
-            $params,
-        );
+        $this->connection->createQueryBuilder()
+            ->delete('order_lines')
+            ->where([
+                'order_id' => $orderId,
+                'position NOT IN' => $positions,
+            ])
+            ->executeStatement()
+        ;
     }
 
     /**
