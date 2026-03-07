@@ -3,12 +3,13 @@
 > **[Русская версия / Russian version](README.ru.md)**
 
 A demo e-commerce project built with DDD and CQRS principles — without Symfony or Doctrine.
-The project showcases three lightweight components working together:
+The project showcases four lightweight components working together:
 
 | Component | Purpose |
 |-----------|---------|
 | [**Wirebox**](https://github.com/ascetic-soft/wirebox) | DI container with autowiring and attribute-based autoconfiguration |
 | [**Rowcast**](https://github.com/ascetic-soft/rowcast) | DataMapper + QueryBuilder over PDO |
+| [**Rowcast Schema**](https://github.com/ascetic-soft/RowcastSchema) | Schema-first migrations and diff tooling |
 | [**Waypoint**](https://github.com/ascetic-soft/waypoint) | PSR-15 router with attribute-based routing |
 
 ## Architecture
@@ -34,8 +35,11 @@ src/                           # Infrastructure layer (namespace App\)
 │   ├── Controller/            # REST controllers (Waypoint)
 │   └── Middleware/            # PSR-15 middleware
 ├── CQRS/                     # CommandBus and QueryBus
-└── Database/
-    └── schema.sql             # DB schema
+
+database/                      # Schema and migrations (Rowcast Schema)
+├── schema.php                 # Declarative DB schema
+├── migrations/                # Generated migration classes
+└── rowcast-schema.php         # CLI config (env-aware)
 ```
 
 The domain layer (`core/`) is pure PHP with no external dependencies.
@@ -57,11 +61,23 @@ composer install
 
 ## Database Setup
 
-Create the database and apply the schema:
+Create the database and apply migrations:
 
 ```bash
 mysql -u root -p -e "CREATE DATABASE backend_demo"
-mysql -u root -p backend_demo < src/Database/schema.sql
+vendor/bin/rowcast-schema migrate
+```
+
+Generate a migration from schema changes:
+
+```bash
+vendor/bin/rowcast-schema diff
+```
+
+Check schema/migration status:
+
+```bash
+vendor/bin/rowcast-schema status
 ```
 
 Connection parameters are configured via environment variables:
@@ -79,6 +95,12 @@ Connection parameters are configured via environment variables:
 
 ```bash
 php -S localhost:8000 -t public
+```
+
+Docker (Caddy + PHP-FPM + MySQL):
+
+```bash
+docker compose up -d --build
 ```
 
 ## API
@@ -103,7 +125,7 @@ POST   /orders/{id}/cancel — cancel an order
 
 ## Testing
 
-Integration tests use SQLite in-memory — no external database required.
+Integration tests use isolated temporary SQLite databases and build schema via Rowcast Schema migrations.
 
 ```bash
 # All tests

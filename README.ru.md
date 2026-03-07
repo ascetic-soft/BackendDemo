@@ -3,12 +3,13 @@
 > **[English version](README.md)**
 
 Демо-проект интернет-магазина, построенный по принципам DDD и CQRS без Symfony и Doctrine.
-Проект демонстрирует совместную работу трёх компонентов:
+Проект демонстрирует совместную работу четырёх компонентов:
 
 | Компонент | Назначение |
 |-----------|------------|
 | [**Wirebox**](https://github.com/ascetic-soft/wirebox) | DI-контейнер с autowiring и автоконфигурацией через атрибуты |
 | [**Rowcast**](https://github.com/ascetic-soft/rowcast) | DataMapper + QueryBuilder поверх PDO |
+| [**Rowcast Schema**](https://github.com/ascetic-soft/RowcastSchema) | Schema-first миграции и diff-инструменты |
 | [**Waypoint**](https://github.com/ascetic-soft/waypoint) | PSR-15 роутер с маршрутизацией через атрибуты |
 
 ## Архитектура
@@ -34,8 +35,11 @@ src/                           # Инфраструктура (namespace App\)
 │   ├── Controller/            # REST-контроллеры (Waypoint)
 │   └── Middleware/            # PSR-15 middleware
 ├── CQRS/                     # CommandBus и QueryBus
-└── Database/
-    └── schema.sql             # Схема БД
+
+database/                      # Схема и миграции (Rowcast Schema)
+├── schema.php                 # Декларативная схема БД
+├── migrations/                # Сгенерированные классы миграций
+└── rowcast-schema.php         # Конфиг CLI (с env-параметрами)
 ```
 
 Доменный слой (`core/`) — чистый PHP без внешних зависимостей.
@@ -57,11 +61,23 @@ composer install
 
 ## Настройка базы данных
 
-Создайте базу и примените схему:
+Создайте базу и примените миграции:
 
 ```bash
 mysql -u root -p -e "CREATE DATABASE backend_demo"
-mysql -u root -p backend_demo < src/Database/schema.sql
+vendor/bin/rowcast-schema migrate
+```
+
+Сгенерировать миграцию из изменений схемы:
+
+```bash
+vendor/bin/rowcast-schema diff
+```
+
+Проверить статус схемы/миграций:
+
+```bash
+vendor/bin/rowcast-schema status
 ```
 
 Параметры подключения задаются через переменные окружения:
@@ -79,6 +95,12 @@ mysql -u root -p backend_demo < src/Database/schema.sql
 
 ```bash
 php -S localhost:8000 -t public
+```
+
+Docker (Caddy + PHP-FPM + MySQL):
+
+```bash
+docker compose up -d --build
 ```
 
 ## API
@@ -103,7 +125,7 @@ POST   /orders/{id}/cancel — отменить заказ
 
 ## Тестирование
 
-Интеграционные тесты используют SQLite in-memory — внешняя БД не нужна.
+Интеграционные тесты используют изолированные временные SQLite-базы и поднимают схему через миграции Rowcast Schema.
 
 ```bash
 # Все тесты
