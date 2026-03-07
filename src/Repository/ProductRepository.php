@@ -70,14 +70,7 @@ final readonly class ProductRepository implements ProductRepositoryInterface
 
     private function createMapping(): Mapping
     {
-        return Mapping::explicit(ProductDTO::class, 'products')
-            ->column('id', 'id')
-            ->column('name', 'name')
-            ->column('price_amount', 'priceAmount')
-            ->column('price_currency', 'priceCurrency')
-            ->column('description', 'description')
-            ->column('created_at', 'createdAt')
-            ->column('updated_at', 'updatedAt');
+        return Mapping::auto(ProductDTO::class, 'products');
     }
 
     private static function toDomain(ProductDTO $dto): Product

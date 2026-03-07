@@ -136,38 +136,17 @@ final readonly class OrderRepository implements OrderRepositoryInterface
             static fn(OrderDTO $orderDto): string => $orderDto->id,
             $orderDtos,
         );
-        $rows = $this->connection->createQueryBuilder()
-            ->select(
-                'order_id',
-                'position',
-                'product_id',
-                'product_name',
-                'unit_price_amount',
-                'unit_price_currency',
-                'quantity',
-            )
-            ->from('order_lines')
-            ->where(['order_id' => $orderIds])
-            ->orderBy('order_id', 'ASC')
-            ->addOrderBy('position', 'ASC')
-            ->fetchAllAssociative()
-        ;
-        /** @var list<array{
-         *   order_id: string,
-         *   position: int|string,
-         *   product_id: string,
-         *   product_name: string,
-         *   unit_price_amount: int|string,
-         *   unit_price_currency: string,
-         *   quantity: int|string
-         * }> $rows */
+        /** @var list<OrderLineDTO> $lineDtos */
+        $lineDtos = $this->mapper->findAll(
+            $this->createOrderLineMapping(),
+            where: ['order_id' => $orderIds],
+            orderBy: ['order_id' => 'ASC', 'position' => 'ASC'],
+        );
 
         $linesByOrderId = [];
-        foreach ($rows as $row) {
-            /** @var string $orderId */
-            $orderId = $row['order_id'];
-            $linesByOrderId[$orderId] ??= [];
-            $linesByOrderId[$orderId][] = self::toOrderLine($row);
+        foreach ($lineDtos as $lineDto) {
+            $linesByOrderId[$lineDto->orderId] ??= [];
+            $linesByOrderId[$lineDto->orderId][] = self::toOrderLineFromDto($lineDto);
         }
 
         return $linesByOrderId;
@@ -190,26 +169,14 @@ final readonly class OrderRepository implements OrderRepositoryInterface
 
     private function createOrderMapping(): Mapping
     {
-        return Mapping::explicit(OrderDTO::class, 'orders')
-            ->column('id', 'id')
-            ->column('status', 'status')
-            ->column('customer_name', 'customerName')
-            ->column('total_amount', 'totalAmount')
-            ->column('total_currency', 'totalCurrency')
-            ->column('created_at', 'createdAt')
-            ->column('updated_at', 'updatedAt');
+        return Mapping::auto(OrderDTO::class, 'orders')
+            ->ignore('lines');
     }
 
     private function createOrderLineMapping(): Mapping
     {
-        return Mapping::explicit(OrderLineDTO::class, 'order_lines')
-            ->column('order_id', 'orderId')
-            ->column('position', 'position')
-            ->column('product_id', 'productId')
-            ->column('product_name', 'productName')
-            ->column('unit_price_amount', 'unitPriceAmount')
-            ->column('unit_price_currency', 'unitPriceCurrency')
-            ->column('quantity', 'quantity');
+        return Mapping::auto(OrderLineDTO::class, 'order_lines')
+            ->ignore('lineTotalAmount');
     }
 
     /**
@@ -267,24 +234,4 @@ final readonly class OrderRepository implements OrderRepositoryInterface
         );
     }
 
-    /**
-     * @param array{
-     *   order_id: string,
-     *   position: int|string,
-     *   product_id: string,
-     *   product_name: string,
-     *   unit_price_amount: int|string,
-     *   unit_price_currency: string,
-     *   quantity: int|string
-     * } $row
-     */
-    private static function toOrderLine(array $row): OrderLine
-    {
-        return new OrderLine(
-            productId: new ProductId((string) $row['product_id']),
-            productName: (string) $row['product_name'],
-            unitPrice: new Money((int) $row['unit_price_amount'], (string) $row['unit_price_currency']),
-            quantity: (int) $row['quantity'],
-        );
-    }
 }
