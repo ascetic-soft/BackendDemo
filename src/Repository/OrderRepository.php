@@ -5,6 +5,10 @@ declare(strict_types=1);
 namespace App\Repository;
 
 use AsceticSoft\Rowcast\Connection;
+use AsceticSoft\Rowcast\DataMapper;
+use AsceticSoft\Rowcast\Mapping;
+use Core\Order\Application\DTO\OrderDTO;
+use Core\Order\Application\DTO\OrderLineDTO;
 use Core\Order\Domain\Entity\Order;
 use Core\Order\Domain\Entity\OrderLine;
 use Core\Order\Domain\Repository\OrderRepositoryInterface;
@@ -12,27 +16,29 @@ use Core\Order\Domain\ValueObject\OrderId;
 use Core\Order\Domain\ValueObject\OrderStatus;
 use Core\Product\Domain\ValueObject\Money;
 use Core\Product\Domain\ValueObject\ProductId;
-use DateTimeImmutable;
 
 final readonly class OrderRepository implements OrderRepositoryInterface
 {
+    private DataMapper $mapper;
+
     public function __construct(
         private Connection $connection,
-    ) {}
+    ) {
+        $this->mapper = new DataMapper($this->connection);
+    }
 
     public function findById(OrderId $id): ?Order
     {
-        /** @var array<string, mixed>|false $row */
-        $row = $this->connection->fetchAssociative(
-            'SELECT * FROM orders WHERE id = ?',
-            [$id->value],
-        );
-
-        if ($row === false) {
+        /** @var OrderDTO|null $dto */
+        $dto = $this->mapper->findOne($this->createOrderMapping(), ['id' => $id->value]);
+        if ($dto === null) {
             return null;
         }
 
-        return $this->hydrateOrder($row);
+        return $this->toOrderDomain(
+            $dto,
+            $this->loadLinesByOrderId($dto->id),
+        );
     }
 
     /**
@@ -40,154 +46,245 @@ final readonly class OrderRepository implements OrderRepositoryInterface
      */
     public function findAll(int $limit = 50, int $offset = 0): array
     {
-        $rows = $this->connection->fetchAllAssociative(
-            'SELECT * FROM orders ORDER BY created_at DESC LIMIT ? OFFSET ?',
-            [$limit, $offset],
+        /** @var list<OrderDTO> $orderDtos */
+        $orderDtos = $this->mapper->findAll(
+            $this->createOrderMapping(),
+            orderBy: ['created_at' => 'DESC'],
+            limit: $limit,
+            offset: $offset,
         );
+        if ($orderDtos === []) {
+            return [];
+        }
 
-        return \array_map($this->hydrateOrder(...), $rows);
+        $linesByOrderId = $this->loadLinesForOrders($orderDtos);
+
+        return \array_map(
+            fn(OrderDTO $dto): Order => $this->toOrderDomain($dto, $linesByOrderId[$dto->id] ?? []),
+            $orderDtos,
+        );
     }
 
     public function save(Order $order): void
     {
-        $this->connection->transactional(function (Connection $conn) use ($order): void {
-            $existing = $conn->fetchAssociative(
-                'SELECT id FROM orders WHERE id = ?',
-                [$order->getId()->value],
+        $this->connection->transactional(function () use ($order): void {
+            $this->mapper->save(
+                $this->createOrderMapping(),
+                self::toOrderDto($order),
+                'id',
             );
-
-            if ($existing === false) {
-                $this->insertOrder($order);
-            } else {
-                $this->updateOrder($order);
-            }
+            $this->syncOrderLines($order);
         });
     }
 
     public function delete(OrderId $id): void
     {
         $this->connection->transactional(function () use ($id): void {
-            $this->connection->executeStatement(
-                'DELETE FROM order_lines WHERE order_id = ?',
-                [$id->value],
-            );
-            $this->connection->executeStatement(
-                'DELETE FROM orders WHERE id = ?',
-                [$id->value],
-            );
+            $this->mapper->delete($this->createOrderLineMapping(), ['order_id' => $id->value]);
+            $this->mapper->delete($this->createOrderMapping(), ['id' => $id->value]);
         });
     }
 
-    private function insertOrder(Order $order): void
+    private function syncOrderLines(Order $order): void
     {
-        $total = $order->getTotal();
-
-        $this->connection->executeStatement(
-            'INSERT INTO orders (id, status, customer_name, total_amount, total_currency, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [
-                $order->getId()->value,
-                $order->getStatus()->value,
-                $order->getCustomerName(),
-                $total->amount,
-                $total->currency,
-                $order->getCreatedAt()->format('Y-m-d H:i:s'),
-                $order->getUpdatedAt()->format('Y-m-d H:i:s'),
-            ],
-        );
+        $positions = [];
+        $orderId = $order->getId()->value;
 
         foreach ($order->getLines() as $position => $line) {
-            $this->insertOrderLine($order->getId(), $position, $line);
+            $this->mapper->upsert(
+                $this->createOrderLineMapping(),
+                self::toOrderLineDto($orderId, $position, $line),
+                'orderId',
+                'position',
+            );
+            $positions[] = $position;
         }
+
+        $this->deleteRemovedOrderLines($orderId, $positions);
     }
 
-    private function updateOrder(Order $order): void
+    /**
+     * @param list<int> $positions
+     */
+    private function deleteRemovedOrderLines(string $orderId, array $positions): void
     {
-        $total = $order->getTotal();
+        if ($positions === []) {
+            $this->mapper->delete($this->createOrderLineMapping(), ['order_id' => $orderId]);
 
-        $this->connection->executeStatement(
-            'UPDATE orders
-             SET status = ?, customer_name = ?, total_amount = ?, total_currency = ?, created_at = ?, updated_at = ?
-             WHERE id = ?',
-            [
-                $order->getStatus()->value,
-                $order->getCustomerName(),
-                $total->amount,
-                $total->currency,
-                $order->getCreatedAt()->format('Y-m-d H:i:s'),
-                $order->getUpdatedAt()->format('Y-m-d H:i:s'),
-                $order->getId()->value,
-            ],
-        );
-
-        // Replace lines: delete old, insert new
-        $this->connection->executeStatement(
-            'DELETE FROM order_lines WHERE order_id = ?',
-            [$order->getId()->value],
-        );
-
-        foreach ($order->getLines() as $position => $line) {
-            $this->insertOrderLine($order->getId(), $position, $line);
+            return;
         }
-    }
 
-    private function insertOrderLine(OrderId $orderId, int $position, OrderLine $line): void
-    {
+        $placeholders = \implode(', ', \array_fill(0, \count($positions), '?'));
+        $params = \array_merge([$orderId], $positions);
+
         $this->connection->executeStatement(
-            'INSERT INTO order_lines (order_id, position, product_id, product_name, unit_price_amount, unit_price_currency, quantity)
-             VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [
-                $orderId->value,
-                $position,
-                $line->getProductId()->value,
-                $line->getProductName(),
-                $line->getUnitPrice()->amount,
-                $line->getUnitPrice()->currency,
-                $line->getQuantity(),
-            ],
+            \sprintf(
+                'DELETE FROM order_lines WHERE order_id = ? AND position NOT IN (%s)',
+                $placeholders,
+            ),
+            $params,
         );
     }
 
     /**
-     * @param array<string, mixed> $row
+     * @param list<OrderDTO> $orderDtos
+     * @return array<string, list<OrderLine>>
      */
-    private function hydrateOrder(array $row): Order
+    private function loadLinesForOrders(array $orderDtos): array
     {
-        /** @var string $id */
-        $id = $row['id'];
-        $orderId = new OrderId($id);
+        $orderIds = \array_map(
+            static fn(OrderDTO $orderDto): string => $orderDto->id,
+            $orderDtos,
+        );
+        $rows = $this->connection->createQueryBuilder()
+            ->select(
+                'order_id',
+                'position',
+                'product_id',
+                'product_name',
+                'unit_price_amount',
+                'unit_price_currency',
+                'quantity',
+            )
+            ->from('order_lines')
+            ->where(['order_id' => $orderIds])
+            ->orderBy('order_id', 'ASC')
+            ->addOrderBy('position', 'ASC')
+            ->fetchAllAssociative()
+        ;
+        /** @var list<array{
+         *   order_id: string,
+         *   position: int|string,
+         *   product_id: string,
+         *   product_name: string,
+         *   unit_price_amount: int|string,
+         *   unit_price_currency: string,
+         *   quantity: int|string
+         * }> $rows */
 
-        /** @var list<array{order_id: string, position: int, product_id: string, product_name: string, unit_price_amount: int, unit_price_currency: string, quantity: int}> $lineRows */
-        $lineRows = $this->connection->fetchAllAssociative(
-            'SELECT * FROM order_lines WHERE order_id = ? ORDER BY position ASC',
-            [$orderId->value],
+        $linesByOrderId = [];
+        foreach ($rows as $row) {
+            /** @var string $orderId */
+            $orderId = $row['order_id'];
+            $linesByOrderId[$orderId] ??= [];
+            $linesByOrderId[$orderId][] = self::toOrderLine($row);
+        }
+
+        return $linesByOrderId;
+    }
+
+    /**
+     * @return list<OrderLine>
+     */
+    private function loadLinesByOrderId(string $orderId): array
+    {
+        /** @var list<OrderLineDTO> $lineDtos */
+        $lineDtos = $this->mapper->findAll(
+            $this->createOrderLineMapping(),
+            where: ['order_id' => $orderId],
+            orderBy: ['position' => 'ASC'],
         );
 
-        $lines = \array_map(static function (array $lineRow): OrderLine {
-            return new OrderLine(
-                productId: new ProductId($lineRow['product_id']),
-                productName: $lineRow['product_name'],
-                unitPrice: new Money($lineRow['unit_price_amount'], $lineRow['unit_price_currency']),
-                quantity: $lineRow['quantity'],
-            );
-        }, $lineRows);
+        return \array_map(self::toOrderLineFromDto(...), $lineDtos);
+    }
 
-        /** @var string $status */
-        $status = $row['status'];
-        /** @var string $customerName */
-        $customerName = $row['customer_name'];
-        /** @var string $createdAt */
-        $createdAt = $row['created_at'];
-        /** @var string $updatedAt */
-        $updatedAt = $row['updated_at'];
+    private function createOrderMapping(): Mapping
+    {
+        return Mapping::explicit(OrderDTO::class, 'orders')
+            ->column('id', 'id')
+            ->column('status', 'status')
+            ->column('customer_name', 'customerName')
+            ->column('total_amount', 'totalAmount')
+            ->column('total_currency', 'totalCurrency')
+            ->column('created_at', 'createdAt')
+            ->column('updated_at', 'updatedAt');
+    }
 
+    private function createOrderLineMapping(): Mapping
+    {
+        return Mapping::explicit(OrderLineDTO::class, 'order_lines')
+            ->column('order_id', 'orderId')
+            ->column('position', 'position')
+            ->column('product_id', 'productId')
+            ->column('product_name', 'productName')
+            ->column('unit_price_amount', 'unitPriceAmount')
+            ->column('unit_price_currency', 'unitPriceCurrency')
+            ->column('quantity', 'quantity');
+    }
+
+    /**
+     * @param list<OrderLine> $lines
+     */
+    private function toOrderDomain(OrderDTO $dto, array $lines): Order
+    {
         return Order::reconstitute(
-            id: $orderId,
-            status: OrderStatus::from($status),
-            customerName: $customerName,
+            id: new OrderId($dto->id),
+            status: OrderStatus::from($dto->status),
+            customerName: $dto->customerName,
             lines: $lines,
-            createdAt: new DateTimeImmutable($createdAt),
-            updatedAt: new DateTimeImmutable($updatedAt),
+            createdAt: $dto->createdAt,
+            updatedAt: $dto->updatedAt,
+        );
+    }
+
+    private static function toOrderDto(Order $order): OrderDTO
+    {
+        $total = $order->getTotal();
+        $dto = new OrderDTO();
+        $dto->id = $order->getId()->value;
+        $dto->status = $order->getStatus()->value;
+        $dto->customerName = $order->getCustomerName();
+        $dto->totalAmount = $total->amount;
+        $dto->totalCurrency = $total->currency;
+        $dto->createdAt = $order->getCreatedAt();
+        $dto->updatedAt = $order->getUpdatedAt();
+
+        return $dto;
+    }
+
+    private static function toOrderLineDto(string $orderId, int $position, OrderLine $line): OrderLineDTO
+    {
+        $dto = new OrderLineDTO();
+        $dto->orderId = $orderId;
+        $dto->position = $position;
+        $dto->productId = $line->getProductId()->value;
+        $dto->productName = $line->getProductName();
+        $dto->unitPriceAmount = $line->getUnitPrice()->amount;
+        $dto->unitPriceCurrency = $line->getUnitPrice()->currency;
+        $dto->quantity = $line->getQuantity();
+        $dto->lineTotalAmount = $line->getLineTotal()->amount;
+
+        return $dto;
+    }
+
+    private static function toOrderLineFromDto(OrderLineDTO $dto): OrderLine
+    {
+        return new OrderLine(
+            productId: new ProductId($dto->productId),
+            productName: $dto->productName,
+            unitPrice: new Money($dto->unitPriceAmount, $dto->unitPriceCurrency),
+            quantity: $dto->quantity,
+        );
+    }
+
+    /**
+     * @param array{
+     *   order_id: string,
+     *   position: int|string,
+     *   product_id: string,
+     *   product_name: string,
+     *   unit_price_amount: int|string,
+     *   unit_price_currency: string,
+     *   quantity: int|string
+     * } $row
+     */
+    private static function toOrderLine(array $row): OrderLine
+    {
+        return new OrderLine(
+            productId: new ProductId((string) $row['product_id']),
+            productName: (string) $row['product_name'],
+            unitPrice: new Money((int) $row['unit_price_amount'], (string) $row['unit_price_currency']),
+            quantity: (int) $row['quantity'],
         );
     }
 }

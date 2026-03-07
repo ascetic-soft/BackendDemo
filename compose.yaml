@@ -1,0 +1,36 @@
+volumes:
+  mysql_data:
+  caddy_data:
+  caddy_config:
+
+services:
+  caddy:
+    image: caddy:alpine
+    volumes:
+      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile
+      - ./public:/app/public
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - fpm
+
+  fpm:
+    build:
+      context: docker/php-fpm
+    user: ${USER_ID:-1000}
+    volumes:
+      - ./:/app:rw
+    depends_on:
+      - database
+
+  database:
+    image: mysql:9.6
+    volumes:
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}

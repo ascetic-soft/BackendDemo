@@ -1,0 +1,8 @@
+:80 {
+    root * /app/public
+    php_fastcgi fpm:9000
+    file_server
+    log {
+        output stdout
+    }
+}

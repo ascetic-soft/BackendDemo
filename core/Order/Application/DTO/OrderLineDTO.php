@@ -9,6 +9,8 @@ namespace Core\Order\Application\DTO;
  */
 final class OrderLineDTO
 {
+    public string $orderId;
+    public int $position;
     public string $productId;
     public string $productName;
     public int $unitPriceAmount;

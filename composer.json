@@ -3,10 +3,14 @@
     "description": "DDD E-commerce Demo with CQRS (Waypoint + Rowcast + Wirebox)",
     "type": "project",
     "license": "MIT",
+    "repositories": [
+        {"type": "path", "url": "../RowcastSchema", "options": {"canonical": false}}
+    ],
     "require": {
         "php": ">=8.4",
         "ascetic-soft/psr7": "^1.0",
-        "ascetic-soft/rowcast": "^1.0",
+        "ascetic-soft/rowcast": "^2.0",
+        "ascetic-soft/rowcast-schema": "^1.0 || dev-main || dev-master",
         "ascetic-soft/waypoint": "^1.2",
         "ascetic-soft/wirebox": "^1.0",
         "psr/http-server-middleware": "^1.0"

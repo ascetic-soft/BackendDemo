@@ -30,6 +30,7 @@ final class TestKernel
 
     public function __construct(
         private readonly string $projectDir,
+        private readonly ?string $sqlitePath = null,
     ) {}
 
     public function boot(): Container
@@ -58,10 +59,13 @@ final class TestKernel
         // Scan domain handlers (core layer)
         $builder->scan($this->projectDir . '/core');
 
-        // Override database connection with SQLite in-memory
-        $builder->register(Connection::class, static function (): Connection {
-            return Connection::create('sqlite::memory:', nestTransactions: true);
-        });
+        $sqliteDsn = $this->sqlitePath !== null ? 'sqlite:' . $this->sqlitePath : 'sqlite::memory:';
+
+        // Override database connection with SQLite (file DB for migration tooling)
+        $builder->register(Connection::class, static fn(): Connection => Connection::create(
+            $sqliteDsn,
+            nestTransactions: true,
+        ));
 
         $this->container = $builder->build();
 

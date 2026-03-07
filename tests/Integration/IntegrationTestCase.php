@@ -6,9 +6,14 @@ namespace Tests\Integration;
 
 use AsceticSoft\Psr7\ServerRequest;
 use AsceticSoft\Rowcast\Connection;
+use AsceticSoft\RowcastSchema\Cli\Application as RowcastSchemaApplication;
 use AsceticSoft\Waypoint\Router;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
+use RuntimeException;
+use SplFileInfo;
 
 /**
  * Base class for integration tests.
@@ -20,67 +25,108 @@ abstract class IntegrationTestCase extends TestCase
 {
     protected Router $router;
     protected Connection $connection;
+    private string $testRuntimeDir;
 
     protected function setUp(): void
     {
         parent::setUp();
 
         $projectDir = \dirname(__DIR__, 2);
+        $this->testRuntimeDir = $this->createRuntimeDirectory();
+        $sqlitePath = $this->testRuntimeDir . '/integration.sqlite';
+        $migrationsPath = $this->testRuntimeDir . '/migrations';
+        $rowcastConfigPath = $projectDir . '/tests/Integration/rowcast-schema.php';
 
-        $kernel = new TestKernel($projectDir);
+        $kernel = new TestKernel($projectDir, $sqlitePath);
         $container = $kernel->boot();
 
         /** @var Connection $connection */
         $connection = $container->get(Connection::class);
         $this->connection = $connection;
 
-        $this->createSchema();
+        $this->createSchemaViaMigrations(
+            rowcastConfigPath: $rowcastConfigPath,
+            migrationsPath: $migrationsPath,
+            sqlitePath: $sqlitePath,
+        );
 
         $this->router = $kernel->getRouter();
     }
 
     /**
-     * Create database tables using SQLite-compatible schema.
+     * Generates and applies schema migrations for the test SQLite database.
      */
-    private function createSchema(): void
+    private function createSchemaViaMigrations(
+        string $rowcastConfigPath,
+        string $migrationsPath,
+        string $sqlitePath,
+    ): void {
+        \putenv('TEST_SQLITE_PATH=' . $sqlitePath);
+        \putenv('TEST_MIGRATIONS_PATH=' . $migrationsPath);
+
+        $cli = new RowcastSchemaApplication();
+        $diffCode = $this->runSchemaCli($cli, ['rowcast-schema', '--config=' . $rowcastConfigPath, 'diff']);
+        if ($diffCode !== 0) {
+            throw new RuntimeException('RowcastSchema diff failed for integration test setup.');
+        }
+
+        $migrateCode = $this->runSchemaCli($cli, ['rowcast-schema', '--config=' . $rowcastConfigPath, 'migrate']);
+        if ($migrateCode !== 0) {
+            throw new RuntimeException('RowcastSchema migrate failed for integration test setup.');
+        }
+    }
+
+    protected function tearDown(): void
     {
-        $this->connection->executeStatement('
-            CREATE TABLE IF NOT EXISTS products (
-                id             TEXT    NOT NULL PRIMARY KEY,
-                name           TEXT    NOT NULL,
-                price_amount   INTEGER NOT NULL DEFAULT 0,
-                price_currency TEXT    NOT NULL DEFAULT \'USD\',
-                description    TEXT    NOT NULL DEFAULT \'\',
-                created_at     TEXT    NOT NULL DEFAULT (datetime(\'now\')),
-                updated_at     TEXT    NOT NULL DEFAULT (datetime(\'now\'))
-            )
-        ');
+        \putenv('TEST_SQLITE_PATH');
+        \putenv('TEST_MIGRATIONS_PATH');
+        $this->removeDirectory($this->testRuntimeDir);
+        parent::tearDown();
+    }
 
-        $this->connection->executeStatement('
-            CREATE TABLE IF NOT EXISTS orders (
-                id             TEXT    NOT NULL PRIMARY KEY,
-                status         TEXT    NOT NULL DEFAULT \'pending\',
-                customer_name  TEXT    NOT NULL,
-                total_amount   INTEGER NOT NULL DEFAULT 0,
-                total_currency TEXT    NOT NULL DEFAULT \'USD\',
-                created_at     TEXT    NOT NULL DEFAULT (datetime(\'now\')),
-                updated_at     TEXT    NOT NULL DEFAULT (datetime(\'now\'))
-            )
-        ');
+    private function createRuntimeDirectory(): string
+    {
+        $path = \sys_get_temp_dir() . '/backend-demo-it-' . \bin2hex(\random_bytes(8));
+        \mkdir($path, 0o777, true);
 
-        $this->connection->executeStatement('
-            CREATE TABLE IF NOT EXISTS order_lines (
-                order_id            TEXT    NOT NULL,
-                position            INTEGER NOT NULL DEFAULT 0,
-                product_id          TEXT    NOT NULL,
-                product_name        TEXT    NOT NULL,
-                unit_price_amount   INTEGER NOT NULL DEFAULT 0,
-                unit_price_currency TEXT    NOT NULL DEFAULT \'USD\',
-                quantity            INTEGER NOT NULL DEFAULT 1,
-                PRIMARY KEY (order_id, position),
-                FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
-            )
-        ');
+        return $path;
+    }
+
+    private function removeDirectory(string $path): void
+    {
+        if (!\is_dir($path)) {
+            return;
+        }
+
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($path, RecursiveDirectoryIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::CHILD_FIRST,
+        );
+
+        /** @var SplFileInfo $entry */
+        foreach ($iterator as $entry) {
+            if ($entry->isDir()) {
+                \rmdir($entry->getPathname());
+            } else {
+                \unlink($entry->getPathname());
+            }
+        }
+
+        \rmdir($path);
+    }
+
+    /**
+     * @param list<string> $argv
+     */
+    private function runSchemaCli(RowcastSchemaApplication $application, array $argv): int
+    {
+        \ob_start();
+
+        try {
+            return $application->run($argv);
+        } finally {
+            \ob_end_clean();
+        }
     }
 
     // ------------------------------------------------------------------

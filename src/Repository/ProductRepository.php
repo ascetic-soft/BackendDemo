@@ -6,7 +6,7 @@ namespace App\Repository;
 
 use AsceticSoft\Rowcast\Connection;
 use AsceticSoft\Rowcast\DataMapper;
-use AsceticSoft\Rowcast\Mapping\ResultSetMapping;
+use AsceticSoft\Rowcast\Mapping;
 use Core\Product\Application\DTO\ProductDTO;
 use Core\Product\Domain\Entity\Product;
 use Core\Product\Domain\Repository\ProductRepositoryInterface;
@@ -26,9 +26,9 @@ final readonly class ProductRepository implements ProductRepositoryInterface
 
     public function findById(ProductId $id): ?Product
     {
-        $rsm = $this->createResultSetMapping();
+        $mapping = $this->createMapping();
         /** @var ProductDTO|null $dto */
-        $dto = $this->mapper->findOne($rsm, ['id' => $id->value]); // @phpstan-ignore argument.templateType
+        $dto = $this->mapper->findOne($mapping, ['id' => $id->value]);
 
         if ($dto === null) {
             return null;
@@ -42,21 +42,15 @@ final readonly class ProductRepository implements ProductRepositoryInterface
      */
     public function findAll(int $limit = 50, int $offset = 0): array
     {
-        $rsm = $this->createResultSetMapping();
+        $mapping = $this->createMapping();
         /** @var list<ProductDTO> $dtos */
-        $dtos = $this->mapper->findAll($rsm, limit: $limit, offset: $offset, orderBy: ['created_at' => 'DESC']); // @phpstan-ignore argument.templateType
+        $dtos = $this->mapper->findAll($mapping, limit: $limit, offset: $offset, orderBy: ['created_at' => 'DESC']);
 
         return \array_map(self::toDomain(...), $dtos);
     }
 
     public function save(Product $product): void
     {
-        /** @var ProductDTO|null $existing */
-        $existing = $this->mapper->findOne( // @phpstan-ignore argument.templateType
-            $this->createResultSetMapping(),
-            ['id' => $product->getId()->value],
-        );
-
         $data = new ProductDTO();
         $data->id = $product->getId()->value;
         $data->name = $product->getName()->value;
@@ -66,32 +60,24 @@ final readonly class ProductRepository implements ProductRepositoryInterface
         $data->createdAt = $product->getCreatedAt();
         $data->updatedAt = $product->getUpdatedAt();
 
-        $rsm = $this->createResultSetMapping();
-
-        if ($existing === null) {
-            $this->mapper->insert($rsm, $data);
-        } else {
-            $this->mapper->update($rsm, $data, ['id' => $product->getId()->value]);
-        }
+        $this->mapper->save($this->createMapping(), $data, 'id');
     }
 
     public function delete(ProductId $id): void
     {
-        $this->mapper->delete($this->createResultSetMapping(), ['id' => $id->value]);
+        $this->mapper->delete($this->createMapping(), ['id' => $id->value]);
     }
 
-    private function createResultSetMapping(): ResultSetMapping
+    private function createMapping(): Mapping
     {
-        $rsm = new ResultSetMapping(ProductDTO::class, table: 'products');
-        $rsm->addField('id', 'id')
-            ->addField('name', 'name')
-            ->addField('price_amount', 'priceAmount')
-            ->addField('price_currency', 'priceCurrency')
-            ->addField('description', 'description')
-            ->addField('created_at', 'createdAt')
-            ->addField('updated_at', 'updatedAt');
-
-        return $rsm;
+        return Mapping::explicit(ProductDTO::class, 'products')
+            ->column('id', 'id')
+            ->column('name', 'name')
+            ->column('price_amount', 'priceAmount')
+            ->column('price_currency', 'priceCurrency')
+            ->column('description', 'description')
+            ->column('created_at', 'createdAt')
+            ->column('updated_at', 'updatedAt');
     }
 
     private static function toDomain(ProductDTO $dto): Product
